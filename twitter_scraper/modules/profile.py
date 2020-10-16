@@ -170,6 +170,18 @@ class Profile:
             #is_private=self.is_private,
             #user_id=self.user_id
         )
+    def get_tweets(self):
+        headers = {
+            "Accept": "application/json, text/javascript, */*; q=0.01",
+            "Referer": f"https://twitter.com/{username}",
+            "User-Agent": "Mozilla/5.0 (Linux; Android 4.4.2; Nexus 4 Build/KOT49H) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/34.0.1847.114 Mobile Safari/537.36",
+            "X-Twitter-Active-User": "yes",
+            "X-Requested-With": "XMLHttpRequest",
+            "Accept-Language": "en-US",
+        }
+
+        page = session.get(f"https://twitter.com/{username}", headers=headers)
+        self.__parse_profile(page)
 
     def __dir__(self):
         return [

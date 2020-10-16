@@ -1,0 +1,39 @@
+.fixbar {
+    width: 100%;
+    height:80px;
+    position: relative;
+    left: 0px;
+    top: 0px;
+    right:0 height: 0px;
+}
+#fullwidth-searchbar {
+    position: relative;
+    left: 0px;
+    top: 15px;
+    right:0;
+    height: 0px;
+}
+.btn{
+    border-radius: 0rem;
+    border-top-right-radius: 0.5rem;
+    border-bottom-right-radius: 0.5rem;
+}
+
+.button-keyword{
+    border: none;
+    color: white;
+    text-align: center;
+    font-family: Open Sans,Helvetica Neue,Helvetica,Arial,sans-serif;
+    font-weight:800;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 20px;
+    margin: 4px 2px;
+    cursor: pointer;
+    height:40px; 
+    border-radius: 3px;
+    pointer-events: none;
+}
+table, th, td {
+    border: 1px solid black;
+  }

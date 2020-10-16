@@ -18,13 +18,15 @@ def get_element_attr(element, attr='href="'):
             break
         url+=char
     return url
-    
 
-def get_tweets(query, pages=1):
+
+def get_tweets(query, pages=1, profileOrQuery = "query"):
     """Gets tweets for a given user, via the Twitter frontend API."""
 
-
-    url = f"https://mobile.twitter.com/search/timeline?f=tweets&vertical=default&q={query}&src=tyah&reset_error_state=false&"
+    if profileOrQuery == "query":
+        url = f"https://mobile.twitter.com/search/timeline?f=tweets&vertical=default&q={query}&src=tyah&reset_error_state=false&"
+    else:
+        url = f"https://twitter.com/{query}"
 
     headers = {
         "Accept": "application/json, text/javascript, */*; q=0.01",
@@ -107,6 +109,9 @@ def get_tweets(query, pages=1):
         url = html.find("div.w-button-more")[0]
         #Get load more link
         url = "https://twitter.com" + get_element_attr(url)
+
+    to_csv(tweets)
+
     return tweets
 
 def to_csv(tweets, filename="tweets"):
