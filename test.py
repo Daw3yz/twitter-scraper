@@ -1,7 +1,6 @@
 import unittest
 from twitter_scraper import get_tweets, get_trends
 
-
 class TestFamilyUnderscore(unittest.TestCase):
     def test_father(self):
         user = "_"

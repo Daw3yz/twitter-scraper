@@ -3,172 +3,119 @@ from requests_html import HTMLSession, HTML
 from datetime import datetime
 from urllib.parse import quote
 from lxml.etree import ParserError
+import csv
 
 session = HTMLSession()
 
-def get_tweets(query, pages=25):
+def get_element_attr(element, attr='href="'):
+    element = element.html
+    #Get load more link
+    urlIndex = element.find(attr) + len(attr)
+    url = ""
+
+    for char in element[urlIndex:]:
+        if char == '"':
+            break
+        url+=char
+    return url
+    
+
+def get_tweets(query, pages=1):
     """Gets tweets for a given user, via the Twitter frontend API."""
 
-    after_part = (
-        f"include_available_features=1&include_entities=1&include_new_items_bar=true"
-    )
-    if query.startswith("#"):
-        query = quote(query)
-        url = f"https://twitter.com/i/search/timeline?f=tweets&vertical=default&q={query}&src=tyah&reset_error_state=false&"
-    else:
-        url = f"https://twitter.com/i/profiles/show/{query}/timeline/tweets?"
-    url += after_part
+
+    url = f"https://mobile.twitter.com/search/timeline?f=tweets&vertical=default&q={query}&src=tyah&reset_error_state=false&"
 
     headers = {
         "Accept": "application/json, text/javascript, */*; q=0.01",
         "Referer": f"https://twitter.com/{query}",
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/603.3.8 (KHTML, like Gecko) Version/10.1.2 Safari/603.3.8",
+        "User-Agent": "Mozilla/5.0 (Linux; Android 4.4.2; Nexus 4 Build/KOT49H) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/34.0.1847.114 Mobile Safari/537.36",
         "X-Twitter-Active-User": "yes",
         "X-Requested-With": "XMLHttpRequest",
         "Accept-Language": "en-US",
     }
 
-    def gen_tweets(pages):
-        request = session.get(url + '&max_position', headers=headers)
+    tweets = []
 
-        while pages > 0:
+    for x in range(pages):
+        try:
+            html = session.get(url, headers=headers)
+            html = HTML(html=html.text, url="bunk", default_encoding="utf-8")
+
+            tweet_table = html.find("table.tweet")
+        except:
+            break
+
+        for tweet in tweet_table:
             try:
-                json_response = request.json()
-                html = HTML(
-                    html=json_response["items_html"], url="bunk", default_encoding="utf-8"
-                )
-            except KeyError:
-                raise ValueError(
-                    f'Oops! Either "{query}" does not exist or is private.'
-                )
-            except ParserError:
-                break
+                tweet_id = tweet.find("div.tweet-text")[0]
+                tweet_id = get_element_attr(tweet_id, 'data-id="')
+            except:
+                tweet_id = None
 
-            comma = ","
-            dot = "."
-            tweets = []
-            for tweet, profile in zip(
-                html.find(".stream-item"), html.find(".js-profile-popup-actionable")
-            ):
-                # 10~11 html elements have `.stream-item` class and also their `data-item-type` is `tweet`
-                # but their content doesn't look like a tweet's content
-                try:
-                    text = tweet.find(".tweet-text")[0].full_text
-                except IndexError:  # issue #50
-                    continue
+            try:
+                tweet_url = "https://twitter.com" + get_element_attr(tweet)
+            except:
+                tweet_url = None
 
+            try:
+                fullname = tweet.find("strong.fullname")[0].text
+            except Exception as e:
+                fullname = None
 
-                tweet_id = tweet.attrs["data-item-id"]
+            try:
+                username = tweet.find("div.username")[0].text
+            except:
+                username = None
+            
+            try:
+                time = tweet.find("td.timestamp")[0].text
+            except:
+                time = None
+            
+            try:
+                text = tweet.find("div.tweet-text")[0].text
+            except Exception as e:
+                print (e)
+                text=None
 
-                tweet_url = profile.attrs["data-permalink-path"]
+            tweets.append(
+                {
+                    "tweetId": tweet_id,
+                    "tweetUrl": tweet_url,
+                    "fullname": fullname,
+                    "username": username,
+                    #"userId": user_id,
+                    #"isRetweet": is_retweet,
+                    #"isPinned": is_pinned,
+                    "time": time,
+                    "text": text,
+                    #"replies": replies,
+                    #"retweets": retweets,
+                    #"likes": likes,
 
-                username = profile.attrs["data-screen-name"]
+                    #TODO get this, it exists in the mobile version
+                    #"entries": {
+                    #    "hashtags": hashtags,
+                    #    "urls": urls,
+                    #    "photos": photos,
+                    #    "videos": videos,
+                    #},
+                }
+            )
 
-                user_id = profile.attrs["data-user-id"]
+        url = html.find("div.w-button-more")[0]
+        #Get load more link
+        url = "https://twitter.com" + get_element_attr(url)
+    return tweets
 
-                is_pinned = bool(tweet.find("div.pinned"))
-
-                time = datetime.fromtimestamp(
-                    int(tweet.find("._timestamp")[0].attrs["data-time-ms"]) / 1000.0
-                )
-
-                interactions = [x.text for x in tweet.find(".ProfileTweet-actionCount")]
-
-                replies = int(
-                    interactions[0].split(" ")[0].replace(comma, "").replace(dot, "")
-                    or interactions[3]
-                )
-
-                retweets = int(
-                    interactions[1].split(" ")[0].replace(comma, "").replace(dot, "")
-                    or interactions[4]
-                    or interactions[5]
-                )
-
-                likes = int(
-                    interactions[2].split(" ")[0].replace(comma, "").replace(dot, "")
-                    or interactions[6]
-                    or interactions[7]
-                )
-
-                hashtags = [
-                    hashtag_node.full_text
-                    for hashtag_node in tweet.find(".twitter-hashtag")
-                ]
-
-                urls = [
-                    url_node.attrs["data-expanded-url"]
-                    for url_node in (
-                        tweet.find("a.twitter-timeline-link:not(.u-hidden)") +
-                        tweet.find("[class='js-tweet-text-container'] a[data-expanded-url]")
-                    )
-                ]
-                urls = list(set(urls)) # delete duplicated elements
-
-                photos = [
-                    photo_node.attrs["data-image-url"]
-                    for photo_node in tweet.find(".AdaptiveMedia-photoContainer")
-                ]
-
-                is_retweet = (
-                    True
-                    if tweet.find(".js-stream-tweet")[0].attrs.get(
-                        "data-retweet-id", None
-                    )
-                    else False
-                )
-
-                videos = []
-                video_nodes = tweet.find(".PlayableMedia-player")
-                for node in video_nodes:
-                    styles = node.attrs["style"].split()
-                    for style in styles:
-                        if style.startswith("background"):
-                            tmp = style.split("/")[-1]
-                            video_id = (
-                                tmp[: tmp.index(".jpg")]
-                                if ".jpg" in tmp
-                                else tmp[: tmp.index(".png")]
-                                if ".png" in tmp
-                                else None
-                            )
-                            videos.append({"id": video_id})
-
-                tweets.append(
-                    {
-                        "tweetId": tweet_id,
-                        "tweetUrl": tweet_url,
-                        "username": username,
-                        "userId": user_id,
-                        "isRetweet": is_retweet,
-                        "isPinned": is_pinned,
-                        "time": time,
-                        "text": text,
-                        "replies": replies,
-                        "retweets": retweets,
-                        "likes": likes,
-                        "entries": {
-                            "hashtags": hashtags,
-                            "urls": urls,
-                            "photos": photos,
-                            "videos": videos,
-                        },
-                    }
-                )
-
-            last_tweet = html.find(".stream-item")[-1].attrs["data-item-id"]
-
-            for tweet in tweets:
-                tweet["text"] = re.sub(r"(\S)http", "\g<1> http", tweet["text"], 1)
-                tweet["text"] = re.sub(
-                    r"(\S)pic\.twitter", "\g<1> pic.twitter", tweet["text"], 1
-                )
-                yield tweet
-
-            request = session.get(url, params={"max_position": json_response['min_position']}, headers=headers)
-            pages += -1
-
-    yield from gen_tweets(pages)
+def to_csv(tweets, filename="tweets"):
+    filename += ".csv"
+    keys = tweets[0].keys()
+    with open(filename, 'w', newline='', encoding='utf16')  as output_file:
+        dict_writer = csv.DictWriter(output_file, keys)
+        dict_writer.writeheader()
+        dict_writer.writerows(tweets)
 
 
 # for searching:

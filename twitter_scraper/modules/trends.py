@@ -8,20 +8,20 @@ def get_trends():
 
     headers = {
         "Accept": "application/json, text/javascript, */*; q=0.01",
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/603.3.8 (KHTML, like Gecko) Version/10.1.2 Safari/603.3.8",
+        "User-Agent": "Mozilla/5.0 (Linux; Android 4.4.2; Nexus 4 Build/KOT49H) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/34.0.1847.114 Mobile Safari/537.36",
         "X-Twitter-Active-User": "yes",
         "X-Requested-With": "XMLHttpRequest",
         "Accept-Language": "en-US",
     }
 
-    html = session.get("https://twitter.com/i/trends", headers=headers)
-    html = html.json()["module_html"]
+    html = session.get("https://twitter.com/trends", headers=headers)
 
-    html = HTML(html=html, url="bunk", default_encoding="utf-8")
+    
+    html = HTML(html=html.text, url="bunk", default_encoding="utf-8")
 
-    for trend_item in html.find("li"):
-        trend_text = trend_item.attrs["data-trend-name"]
-
-        trends.append(trend_text)
-
-    return trends
+    try:
+        trends = [trend.text for trend in html.find("li.topic")]
+    except:
+        trends = None
+    
+    return (trends)
