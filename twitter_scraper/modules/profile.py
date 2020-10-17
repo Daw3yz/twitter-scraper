@@ -204,3 +204,5 @@ class Profile:
 
     def __repr__(self):
         return f"<profile {self.username}@twitter>"
+
+print(Profile("shroud").to_dict())
